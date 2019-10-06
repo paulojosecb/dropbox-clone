@@ -1,36 +1,56 @@
-import fs from 'fs'
-import path from 'path'
-import http from 'http'
-import url from 'url'
+const uuid = require('uuid')
+const fs = require('fs')
+const util = require('util')
+const http = require('http')
+const express = require('express')
 
-http.createServer((req, res) => {
-  const sanitizePath = path.normalize(req.url!).replace(/^(\.\.[\/\\])+/, '')
-  const pathname = path.join(__dirname, sanitizePath)
+const id = uuid.v4()
 
-  fs.stat(pathname, (err) => {
-    if (err) {
-      res.statusCode = 404
-      res.end('File not found')
-    }
+const app = express()
 
-    if (fs.statSync(pathname).isDirectory()) {
-      fs.readdir(pathname, (err, files) => {
-        res.end(files[0])
-      })
-    }
+const logger = express.Router()
 
-    // read file from file system
-    fs.readFile(pathname, function (err, data) {
-      if (err) {
-        res.statusCode = 500
-        res.end(`Error getting the file: ${err}.`)
-      } else {
-        // based on the URL path, extract the file extention. e.g. .js, .doc, ...
-        const ext = path.parse(pathname).ext
-        // if the file is found, set Content-type and send data
-        //   res.setHeader('Content-type', mimeType[ext] || 'text/plain')
-        res.end(data)
-      }
+const statPromisified = util.promisify(fs.stat)
+
+logger.use((req, res) => {
+  const url = `./storage${req.baseUrl}${req.url}`
+
+  try {
+    fs.readdir(url, async (err, files) => {
+
+      const result = await Promise.all(files.map(async file => {
+        const stats = await statPromisified(`${url}${file}`)
+
+        return {
+          name: file,
+          isFile: stats.isFile(),
+          url: `${url}${file}`
+        }
+      }))
+
+      res.send(result)
     })
-  })
-}).listen(3000)
+  } catch (err) {
+    console.log(err)
+  }
+})
+
+app.use('/:uid', logger)
+
+app.listen(3000, () => console.log('Listening...'))
+
+// fs.readdir('./storage', (err, files) => {
+//     files.forEach(file => {
+//         fs.stat(`./storage/${file}`, (err, stats) => {
+//             if (err) throw err
+//             console.log(stats.isFile())
+//         })
+//     })
+// })
+
+// 2802b978-882d-4460-b4b5-bc9f06ea1b89
+
+// http.createServer((req, res ) => {
+//     console.log(req.url)
+//     // res.write(req.url)
+// }).listen(3000)
