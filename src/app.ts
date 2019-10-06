@@ -4,6 +4,7 @@ import cors from 'cors'
 
 import mainRouter from './routers/mainRouter'
 import actionRouter from './routers/actionRouter'
+import loginRouter from './routers/loginRouter'
 
 class App {
     public express: express.Application
@@ -17,8 +18,9 @@ class App {
     }
 
     private routes = (): void => {
-      this.express.use(':/uid', mainRouter)
+      this.express.use('/storage/:uid', mainRouter)
       this.express.use('/action', actionRouter)
+      this.express.use('/auth', loginRouter)
     }
 
     private database = (): void => {
@@ -38,7 +40,8 @@ class App {
     }
 
     private middlewares = (): void => {
-      this.express.use(cors)
+      this.express.use(cors())
+      this.express.use(express.json())
     }
 }
 
